@@ -2,17 +2,40 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .models import *
-from .serializer import CategorySerializer
+from .serializer import *
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.generics import ListAPIView, CreateAPIView,RetrieveAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.pagination import PageNumberPagination
+from rest_framework import filters
+
 # Create your views here.
 
 class CategoryViewset(ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    
+    def destroy(self, request, pk):
+        category = Category.objects.get(pk = pk)
+        total = OrderItem.objects.filter(food__category = category).count()
+        if total > 0:
+            raise ValidationError({
+            "detail":"The food of this category exists in the order."
+    })
+        category.delete()
+        return Response({
+            "details":"Category deleted."
+    }, status = status.HTTP_404_NOT_FOUND)
+        
+class Foodviewset(ModelViewSet):
+    queryset = Food.objects.select_related('category').all()
+    serializer_class = FoodSerializer
+    pagination_class = PageNumberPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']
+
 
 
 # class CategoryView(ListAPIView, CreateAPIView):
@@ -38,17 +61,7 @@ class CategoryViewset(ModelViewSet):
 #     serializer_class = CategorySerializer
 #     lookup_field = 'pk'
     
-#     def delete(self, request,pk):
-#         category = Category.objects.get(pk = pk)
-#         total = OrderItem.objects.filter(food__category = category).count()
-#         if total > 0:
-#             raise ValidationError({
-#             "detail":"The food of this category exists in the order."
-#     })
-#         category.delete()
-#         return Response({
-#             "details":"Category deleted."
-#     }, status = status.HTTP_404_NOT_FOUND)
+    
     
     
     # def get(self, request, id):
